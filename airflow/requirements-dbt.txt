@@ -1,0 +1,9 @@
+# Instalado num virtualenv separado (/opt/dbt-venv), fora do ambiente do Airflow.
+# Motivo: dbt-core e Airflow disputam jinja2, protobuf e pydantic. Isolar evita
+# a briga de dependencias mais classica de quem roda dbt dentro do Airflow.
+
+dbt-core>=1.9,<1.10
+dbt-spark[session]>=1.9,<1.10
+
+# Pinado: os jars do Delta baixados na imagem sao para Spark 3.5.x.
+pyspark==3.5.3

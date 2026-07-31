@@ -1,0 +1,69 @@
+version: 2
+
+models:
+  - name: silver_quotes
+    description: >
+      Cotacoes tipadas e deduplicadas. Uma linha por (ticker, quote_ts).
+      Contem a variacao percentual recalculada e o atraso do feed em segundos.
+    data_tests:
+      # Prova de que a deduplicacao funcionou: o polling entrega a mesma cotacao
+      # repetidas vezes, mas a chave natural tem que ser unica na silver.
+      - unique_combination_of_columns:
+          combination_of_columns: ['ticker', 'quote_ts']
+    columns:
+      - name: event_id
+        description: "UUID da leitura que venceu a deduplicacao (a primeira observada)."
+        data_tests:
+          - not_null
+      - name: ticker
+        description: "Codigo de negociacao na B3."
+        data_tests:
+          - not_null
+          # Contrato com o dado de referencia: ticker novo no stream exige
+          # atualizar o seed dim_tickers, senao este teste falha.
+          - relationships:
+              to: ref('dim_tickers')
+              field: ticker
+      - name: quote_ts
+        description: "Horario da cotacao na origem."
+        data_tests:
+          - not_null
+      - name: ingestion_ts
+        description: "Horario da leitura pelo producer."
+        data_tests:
+          - not_null
+      - name: price
+        description: "Ultimo preco negociado (R$)."
+        data_tests:
+          - not_null
+          - between:
+              min_value: "{{ var('price_min') }}"
+              max_value: "{{ var('price_max') }}"
+      - name: previous_close
+        description: "Fechamento do dia anterior, base do calculo de variacao."
+      - name: change_pct
+        description: "Variacao percentual sobre o fechamento anterior."
+        data_tests:
+          - between:
+              min_value: "-{{ var('change_pct_limit') }}"
+              max_value: "{{ var('change_pct_limit') }}"
+      - name: volume
+        description: "Volume acumulado do dia."
+        data_tests:
+          - between:
+              min_value: 0
+              max_value: 100000000000
+      - name: feed_delay_seconds
+        description: >
+          ingestion_ts - quote_ts. No plano free da brapi fica na casa dos
+          ~1.800s (30 min), que e o atraso contratual do feed gratuito.
+      - name: source
+        description: "`brapi` ou `simulated`."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['brapi', 'simulated']
+      - name: trading_date
+        description: "Data do pregao (fuso America/Sao_Paulo). Coluna de particionamento."
+        data_tests:
+          - not_null

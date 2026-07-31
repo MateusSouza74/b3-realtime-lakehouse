@@ -1,0 +1,31 @@
+# Segredos / config local
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/package-lock.yml
+
+# Airflow
+airflow/state/
+airflow/logs/
+airflow/*.cfg
+airflow/*.db
+airflow/standalone_admin_password.txt
+
+# Dados locais (o lakehouse vive em volume Docker, mas por seguranca)
+data/
+*.delta
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

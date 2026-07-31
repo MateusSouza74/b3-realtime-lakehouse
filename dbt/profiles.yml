@@ -1,0 +1,19 @@
+# O dbt roda com method=session: ele instancia uma SparkSession local no proprio
+# processo, com Delta habilitado via SPARK_CONF_DIR (/opt/spark-conf).
+#
+# Por que nao um Thrift Server separado: um container a menos, sem PyHive/SASL no
+# meio, e um unico processo escrevendo no metastore Derby por vez (o Airflow roda
+# com SequentialExecutor justamente para garantir isso).
+#
+# threads: 1 -> escrita local em Delta + metastore Derby nao ganham nada com
+# paralelismo aqui e ganham risco de contencao.
+
+b3_lakehouse:
+  target: local
+  outputs:
+    local:
+      type: spark
+      method: session
+      host: localhost
+      schema: silver
+      threads: 1

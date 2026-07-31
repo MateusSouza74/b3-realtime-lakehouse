@@ -1,0 +1,58 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: >
+      Camada bronze do lakehouse. Escrita pelo Spark Structured Streaming
+      (append-only, sem regra de negocio) e registrada como tabela Delta externa
+      pelos hooks `on-run-start` deste projeto. O dbt le esta camada e nunca a
+      materializa - a fronteira entre streaming e batch fica exatamente aqui.
+    schema: bronze
+    tables:
+      - name: quotes
+        description: >
+          Um registro por LEITURA de cotacao (poll), nao por negocio. O mesmo
+          preco aparece repetido varias vezes porque o polling e mais rapido que
+          a atualizacao do feed gratuito - a deduplicacao acontece na silver.
+        loaded_at_field: ingestion_ts
+        freshness:
+          warn_after: {count: 5, period: minute}
+          error_after: {count: 20, period: minute}
+        columns:
+          - name: event_id
+            description: "UUID gerado pelo producer para cada leitura."
+            data_tests:
+              - not_null
+          - name: ticker
+            description: "Codigo de negociacao na B3."
+            data_tests:
+              - not_null
+          - name: price
+            description: "regularMarketPrice retornado pela API."
+            data_tests:
+              - not_null
+              - between:
+                  min_value: "{{ var('price_min') }}"
+                  max_value: "{{ var('price_max') }}"
+          - name: quote_ts
+            description: "Horario da cotacao na ORIGEM (regularMarketTime)."
+          - name: ingestion_ts
+            description: "Horario em que o producer leu a API. A diferenca com quote_ts e o atraso do feed."
+            data_tests:
+              - not_null
+          - name: source
+            description: "Procedencia do dado: `brapi` (API real) ou `simulated` (random walk local)."
+            data_tests:
+              - not_null
+              - accepted_values:
+                  values: ['brapi', 'simulated']
+          - name: volume
+            description: "Volume financeiro acumulado do dia (cumulativo, nao por tick)."
+          - name: kafka_partition
+            description: "Particao Kafka de origem (particionado por ticker)."
+          - name: kafka_offset
+            description: "Offset Kafka - permite rastrear a linha ate o evento original."
+          - name: processing_ts
+            description: "Horario em que o Spark processou o micro-batch."
+          - name: ingestion_date
+            description: "Coluna de particionamento da tabela Delta."

@@ -1,0 +1,164 @@
+name: b3-realtime-lakehouse
+
+# ---------------------------------------------------------------------------
+# Sobe tudo com: docker compose up -d --build
+#
+#   Airflow  -> http://localhost:8080   (admin / admin)
+#   Dashboard-> http://localhost:8501
+#   Spark UI -> http://localhost:4040   (streaming query em execucao)
+#
+# Nao existe arquivo .env obrigatorio: todos os defaults abaixo funcionam
+# sem token (tickers de sandbox da brapi.dev). Copie .env.example -> .env
+# apenas se quiser customizar.
+# ---------------------------------------------------------------------------
+
+services:
+
+  # Prepara os diretorios do lakehouse com o dono correto (uid 50000 = airflow),
+  # porque o container do Spark e o do Airflow escrevem na MESMA tabela Delta.
+  init-lake:
+    image: busybox:1.37
+    container_name: b3-init-lake
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        mkdir -p /data/delta/bronze /data/delta/silver /data/delta/gold \
+                 /data/checkpoints /data/alerts /data/derby /data/warehouse \
+                 /airflow-state/logs
+        chown -R 50000:0 /data /airflow-state
+        chmod -R 775 /data /airflow-state
+        echo "[init-lake] lakehouse pronto"
+    volumes:
+      - lakehouse:/data
+      - airflow_state:/airflow-state
+
+  # Kafka em modo KRaft (sem Zookeeper), single node.
+  # Sem volume de proposito: o Kafka aqui e transporte, nao storage.
+  # A camada duravel e a tabela Delta bronze.
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: b3-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_HEAP_OPTS: -Xmx512m -Xms256m
+      CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 20s
+
+  # Polling da brapi.dev -> 1 evento por leitura no topico Kafka.
+  producer:
+    build: ./producer
+    container_name: b3-producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-b3.quotes.raw}
+      TICKERS: ${TICKERS:-PETR4,VALE3,ITUB4,MGLU3}
+      POLL_INTERVAL_SECONDS: ${POLL_INTERVAL_SECONDS:-15}
+      # auto = brapi durante o pregao da B3, simulado fora dele (ver README)
+      SOURCE_MODE: ${SOURCE_MODE:-auto}
+      BRAPI_TOKEN: ${BRAPI_TOKEN:-}
+      BRAPI_TICKERS_PER_REQUEST: ${BRAPI_TICKERS_PER_REQUEST:-1}
+      TOPIC_PARTITIONS: 3
+      TOPIC_RETENTION_HOURS: 24
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    restart: unless-stopped
+
+  # Structured Streaming: Kafka -> Delta Lake (bronze), append-only.
+  spark-streaming:
+    build: ./spark
+    container_name: b3-spark-streaming
+    depends_on:
+      kafka:
+        condition: service_healthy
+      init-lake:
+        condition: service_completed_successfully
+    ports:
+      - "4040:4040"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_TOPIC: ${KAFKA_TOPIC:-b3.quotes.raw}
+      BRONZE_PATH: /data/delta/bronze/quotes
+      CHECKPOINT_PATH: /data/checkpoints/bronze_quotes
+      TRIGGER_SECONDS: ${TRIGGER_SECONDS:-15}
+    volumes:
+      - lakehouse:/data
+    restart: unless-stopped
+
+  # Orquestracao da camada batch: dbt (silver/gold) + testes + alertas.
+  airflow:
+    build: ./airflow
+    container_name: b3-airflow
+    depends_on:
+      init-lake:
+        condition: service_completed_successfully
+    ports:
+      - "8080:8080"
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: SequentialExecutor
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+      AIRFLOW__CORE__DEFAULT_TIMEZONE: America/Sao_Paulo
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: sqlite:////opt/airflow/state/airflow.db
+      AIRFLOW__LOGGING__BASE_LOG_FOLDER: /opt/airflow/state/logs
+      AIRFLOW__WEBSERVER__DEFAULT_UI_TIMEZONE: America/Sao_Paulo
+      AIRFLOW__WEBSERVER__SECRET_KEY: b3-realtime-lakehouse-local
+      AIRFLOW__WEBSERVER__WORKERS: "2"
+      AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: "30"
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+      BATCH_SCHEDULE_CRON: ${BATCH_SCHEDULE_CRON:-*/5 * * * *}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
+      DBT_PROFILES_DIR: /opt/dbt
+      DBT_PROJECT_DIR: /opt/dbt
+      DBT_LOG_PATH: /tmp/dbt/logs
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./dbt:/opt/dbt
+      - lakehouse:/data
+      - airflow_state:/opt/airflow/state
+    restart: unless-stopped
+
+  # Terminal financeiro (Streamlit) lendo as tabelas Delta gold via delta-rs.
+  dashboard:
+    build: ./dashboard
+    container_name: b3-dashboard
+    depends_on:
+      init-lake:
+        condition: service_completed_successfully
+    ports:
+      - "8501:8501"
+    environment:
+      LAKE_ROOT: /data/delta
+      ALERTS_PATH: /data/alerts
+      REFRESH_SECONDS: ${DASHBOARD_REFRESH_SECONDS:-10}
+    volumes:
+      - lakehouse:/data
+    restart: unless-stopped
+
+volumes:
+  lakehouse:
+  airflow_state:

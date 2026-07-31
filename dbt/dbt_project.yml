@@ -1,0 +1,65 @@
+name: 'b3_lakehouse'
+version: '1.0.0'
+config-version: 2
+
+profile: 'b3_lakehouse'
+require-dbt-version: [">=1.8.0", "<2.0.0"]
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+clean-targets: ["target", "dbt_packages", "logs"]
+
+# A bronze e escrita pelo Spark Structured Streaming, nao pelo dbt. Estes hooks
+# apenas registram o caminho Delta como tabela externa no catalogo, para que a
+# camada possa ser referenciada como `source`. Sao idempotentes.
+on-run-start:
+  - "create database if not exists bronze"
+  - "create table if not exists bronze.quotes using delta location '{{ var(\"bronze_path\") }}'"
+
+vars:
+  bronze_path: "/data/delta/bronze/quotes"
+  silver_path: "/data/delta/silver"
+  gold_path: "/data/delta/gold"
+
+  # Janela de dias mantida na camada gold (o dashboard e intraday).
+  gold_lookback_days: 5
+
+  # Acima disso, o teste de frescor considera o pipeline parado e o Airflow alerta.
+  max_feed_staleness_minutes: 20
+
+  # Faixas plausiveis para acao da B3 (testes de qualidade).
+  price_min: 0.01
+  price_max: 5000
+  # A B3 aciona circuit breaker em -10%; +-30% num dia e implausivel para
+  # uma acao liquida do IBOV e indica erro de dado.
+  change_pct_limit: 30
+
+# Os caminhos abaixo aparecem literais de proposito: o contexto Jinja disponivel
+# em dbt_project.yml e restrito, e `var()` aqui e uma fonte conhecida de dor de
+# cabeca. Nas macros e nos hooks (renderizados em runtime) as vars funcionam.
+models:
+  b3_lakehouse:
+    +file_format: delta
+    silver:
+      +schema: silver
+      +tags: ["silver"]
+      +location_root: "/data/delta/silver"
+    gold:
+      +schema: gold
+      +tags: ["gold"]
+      +materialized: table
+      +location_root: "/data/delta/gold"
+
+seeds:
+  b3_lakehouse:
+    +schema: silver
+    +file_format: delta
+    +location_root: "/data/delta/silver"
+    dim_tickers:
+      +column_types:
+        ticker: string
+        company_name: string
+        sector: string
+        b3_index: string

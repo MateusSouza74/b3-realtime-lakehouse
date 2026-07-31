@@ -1,0 +1,9 @@
+ticker,company_name,sector,b3_index
+PETR4,Petroleo Brasileiro S.A. - Petrobras,Petroleo e Gas,IBOV
+VALE3,Vale S.A.,Mineracao,IBOV
+ITUB4,Itau Unibanco Holding S.A.,Financeiro,IBOV
+MGLU3,Magazine Luiza S.A.,Varejo,IBOV
+BBAS3,Banco do Brasil S.A.,Financeiro,IBOV
+WEGE3,WEG S.A.,Bens Industriais,IBOV
+B3SA3,B3 S.A. - Brasil Bolsa Balcao,Financeiro,IBOV
+ABEV3,Ambev S.A.,Consumo,IBOV

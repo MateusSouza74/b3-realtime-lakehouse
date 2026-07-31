@@ -1,0 +1,135 @@
+version: 2
+
+models:
+  - name: gold_intraday_candles
+    description: >
+      Candles OHLCV de 1 minuto por ticker, com volume por janela, retorno,
+      medias moveis de 9 e 20 janelas e volatilidade de 20 janelas.
+      Fonte da serie historica intraday do dashboard.
+    data_tests:
+      - unique_combination_of_columns:
+          combination_of_columns: ['ticker', 'window_start']
+    columns:
+      - name: ticker
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_tickers')
+              field: ticker
+      - name: window_start
+        description: "Inicio da janela de 1 minuto."
+        data_tests:
+          - not_null
+      - name: open_price
+        description: "Primeiro preco observado na janela."
+        data_tests:
+          - not_null
+          - between:
+              min_value: "{{ var('price_min') }}"
+              max_value: "{{ var('price_max') }}"
+      - name: high_price
+        description: "Maior preco da janela."
+        data_tests:
+          - not_null
+      - name: low_price
+        description: "Menor preco da janela."
+        data_tests:
+          - not_null
+      - name: close_price
+        description: "Ultimo preco observado na janela."
+        data_tests:
+          - not_null
+          - between:
+              min_value: "{{ var('price_min') }}"
+              max_value: "{{ var('price_max') }}"
+      - name: n_ticks
+        description: "Quantas leituras distintas formaram a janela."
+        data_tests:
+          - not_null
+      - name: volume_cumulative
+        description: "Volume acumulado do dia no fim da janela (como vem da API)."
+      - name: volume_delta
+        description: "Volume negociado NA janela = acumulado atual - acumulado anterior."
+        data_tests:
+          - between:
+              min_value: 0
+              max_value: 100000000000
+      - name: return_pct
+        description: "Retorno percentual da janela contra o fechamento da janela anterior."
+      - name: sma_9
+        description: "Media movel simples dos ultimos 9 fechamentos de 1 minuto."
+      - name: sma_20
+        description: "Media movel simples dos ultimos 20 fechamentos de 1 minuto."
+      - name: volatility_pct_20
+        description: "Desvio padrao dos retornos de 1 minuto nas ultimas 20 janelas (%)."
+      - name: source
+        data_tests:
+          - accepted_values:
+              values: ['brapi', 'simulated']
+      - name: trading_date
+        data_tests:
+          - not_null
+
+  - name: gold_ticker_snapshot
+    description: >
+      Estado atual de cada papel: ultimo preco, variacao, faixa do dia, volume,
+      medias moveis, volatilidade, atraso do feed e idade do ultimo tick.
+      Uma linha por ticker - e a tabela que alimenta os tiles do dashboard.
+    columns:
+      - name: ticker
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('dim_tickers')
+              field: ticker
+      - name: company_name
+        description: "Vem do seed dim_tickers."
+        data_tests:
+          - not_null
+      - name: sector
+        data_tests:
+          - not_null
+      - name: last_price
+        data_tests:
+          - not_null
+          - between:
+              min_value: "{{ var('price_min') }}"
+              max_value: "{{ var('price_max') }}"
+      - name: change_pct
+        description: "Variacao percentual sobre o fechamento anterior."
+        data_tests:
+          - between:
+              min_value: "-{{ var('change_pct_limit') }}"
+              max_value: "{{ var('change_pct_limit') }}"
+      - name: day_range_position_pct
+        description: "Posicao do preco na faixa do dia: 0% = minima, 100% = maxima."
+        data_tests:
+          - between:
+              min_value: 0
+              max_value: 100
+      - name: feed_delay_seconds
+        description: "Atraso da FONTE (ingestion_ts - quote_ts)."
+      - name: seconds_since_last_tick
+        description: "Idade do ultimo dado ingerido - saude do PIPELINE."
+      - name: source
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['brapi', 'simulated']
+
+  - name: gold_sector_performance
+    description: "Performance agregada por setor economico. Uma linha por setor."
+    columns:
+      - name: sector
+        data_tests:
+          - not_null
+          - unique
+      - name: n_tickers
+        data_tests:
+          - not_null
+      - name: avg_change_pct
+        data_tests:
+          - between:
+              min_value: "-{{ var('change_pct_limit') }}"
+              max_value: "{{ var('change_pct_limit') }}"

@@ -1,0 +1,26 @@
+version: 2
+
+seeds:
+  - name: dim_tickers
+    description: >
+      Dado de referencia dos papeis acompanhados (nome da companhia, setor e
+      indice). Serve de contrato: se um ticker aparecer no stream sem estar aqui,
+      o teste `relationships` da camada gold falha de proposito.
+      Sem token da brapi, apenas PETR4, VALE3, ITUB4 e MGLU3 retornam dado real
+      (sandbox); os demais exigem token.
+    columns:
+      - name: ticker
+        description: "Codigo de negociacao na B3."
+        data_tests:
+          - not_null
+          - unique
+      - name: company_name
+        description: "Razao social da companhia."
+        data_tests:
+          - not_null
+      - name: sector
+        description: "Setor economico, usado na performance setorial da gold."
+        data_tests:
+          - not_null
+      - name: b3_index
+        description: "Indice de referencia do papel."

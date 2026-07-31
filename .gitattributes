@@ -1,0 +1,15 @@
+# Scripts executados dentro de containers Linux precisam de LF,
+# mesmo quando o repo e clonado no Windows.
+* text=auto eol=lf
+*.sh text eol=lf
+*.py text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.conf text eol=lf
+*.properties text eol=lf
+Dockerfile text eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
