@@ -47,7 +47,7 @@ Ajuste o link do repositório antes de publicar.
 > (ΔE 4.1 em deuteranopia). Troquei o par e mantive seta + sinal como codificação secundária.
 >
 > Código, arquitetura e — principalmente — a seção de limitações conhecidas:
-> 🔗 https://github.com/<seu-usuario>/b3-realtime-lakehouse
+> 🔗 https://github.com/MateusSouza74/b3-realtime-lakehouse
 >
 > Um portfólio sem seção de limitações é propaganda, não engenharia.
 >
@@ -72,7 +72,7 @@ Ajuste o link do repositório antes de publicar.
 > • a API entrega volume ACUMULADO → volume por janela precisa ser reconstruído por diferença
 > • média móvel não pode atravessar o fechamento de um pregão para o outro
 >
-> 🔗 https://github.com/<seu-usuario>/b3-realtime-lakehouse
+> 🔗 https://github.com/MateusSouza74/b3-realtime-lakehouse
 >
 > #DataEngineering #Kafka #Spark #DeltaLake #dbt #Airflow #B3
 
@@ -102,7 +102,7 @@ Ajuste o link do repositório antes de publicar.
 > 50+ testes rodando dentro do `dbt build`, na mesma sessão Spark dos modelos: se a silver falha
 > no teste, a gold não começa.
 >
-> 🔗 https://github.com/<seu-usuario>/b3-realtime-lakehouse
+> 🔗 https://github.com/MateusSouza74/b3-realtime-lakehouse
 >
 > #DataEngineering #DataQuality #dbt #DeltaLake #Airflow #MercadoFinanceiro
 
@@ -110,7 +110,7 @@ Ajuste o link do repositório antes de publicar.
 
 ## Checklist antes de publicar
 
-- [ ] Trocar `<seu-usuario>` pelo seu usuário do GitHub (no post **e** no README)
+- [x] Trocar o placeholder de usuário do GitHub (no post **e** no README)
 - [ ] Subir os prints em `docs/images/` — post com imagem tem alcance muito maior
 - [ ] Usar o **GIF** como mídia principal: mostrar o dashboard atualizando sozinho é o que prova
       que é streaming de verdade

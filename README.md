@@ -14,7 +14,7 @@ tudo em containers, **sobe com um comando**.
 ![Custo](https://img.shields.io/badge/custo-R%24%200-brightgreen)
 
 ```bash
-git clone https://github.com/<seu-usuario>/b3-realtime-lakehouse.git
+git clone https://github.com/MateusSouza74/b3-realtime-lakehouse.git
 cd b3-realtime-lakehouse
 docker compose up -d --build
 ```
@@ -187,7 +187,7 @@ datasource intermediário só para ler Delta).
 ### Subindo
 
 ```bash
-git clone https://github.com/<seu-usuario>/b3-realtime-lakehouse.git
+git clone https://github.com/MateusSouza74/b3-realtime-lakehouse.git
 cd b3-realtime-lakehouse
 
 # Opcional: só se quiser customizar tickers, token ou intervalos
