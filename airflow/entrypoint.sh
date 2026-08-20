@@ -23,12 +23,15 @@ airflow users create \
   --role Admin \
   --email admin@example.com >/dev/null 2>&1 || echo "[entrypoint] usuario admin ja existia"
 
-# dim_tickers e dado de referencia estatico. E semeado uma vez aqui (com
-# --full-refresh, que forca o replace completo) em vez de a cada execucao do
-# DAG: o seed do dbt-spark sobre tabela Delta externa (location_root) faz
-# INSERT a cada chamada, nao replace - reseedar a cada 5 min duplicaria as
-# linhas indefinidamente e quebraria o teste unique_dim_tickers_ticker.
+# dim_tickers e dado de referencia estatico. E semeado uma vez aqui, em vez de
+# a cada execucao do DAG (reseedar a cada 5 min duplicaria as linhas
+# indefinidamente - ver historico do dbt_project.yml). O dbt-spark, numa
+# tabela Delta EXTERNA (location_root), nunca trunca antes de gravar: mesmo
+# com --full-refresh o seed grava com mode=Append por cima do que ja existe
+# no location. Por isso o diretorio e apagado manualmente antes do seed, para
+# garantir um load limpo mesmo que o container reinicie.
 echo "[entrypoint] semeando dim_tickers..."
+rm -rf /data/delta/silver/dim_tickers
 /opt/dbt-venv/bin/dbt seed --full-refresh --project-dir /opt/dbt --profiles-dir /opt/dbt \
   || echo "[entrypoint] seed de dim_tickers falhou, o DAG tentara novamente"
 
