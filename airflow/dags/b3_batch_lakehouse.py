@@ -162,10 +162,15 @@ with DAG(
 
     # Inclui `source:bronze` para rodar os testes da bronze (entre eles o
     # assert_bronze_stream_is_fresh, que e o alarme de pipeline parado).
+    #
+    # dim_tickers NAO entra aqui: e dado de referencia estatico, semeado uma vez
+    # no entrypoint.sh do container. O seed do dbt-spark sobre tabela Delta
+    # externa faz INSERT a cada chamada (nao replace); reseedar a cada 5 min
+    # duplicaria as linhas indefinidamente.
     dbt_silver = _dbt(
         task_id="dbt_build_silver",
         camada="silver",
-        selecao="source:bronze dim_tickers silver_quotes",
+        selecao="source:bronze silver_quotes",
     )
 
     dbt_gold = _dbt(

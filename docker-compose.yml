@@ -38,7 +38,7 @@ services:
   # Sem volume de proposito: o Kafka aqui e transporte, nao storage.
   # A camada duravel e a tabela Delta bronze.
   kafka:
-    image: apache/kafka:3.9.0
+    image: apache/kafka:3.9.1
     container_name: b3-kafka
     environment:
       KAFKA_NODE_ID: 1

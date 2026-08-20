@@ -23,6 +23,15 @@ airflow users create \
   --role Admin \
   --email admin@example.com >/dev/null 2>&1 || echo "[entrypoint] usuario admin ja existia"
 
+# dim_tickers e dado de referencia estatico. E semeado uma vez aqui (com
+# --full-refresh, que forca o replace completo) em vez de a cada execucao do
+# DAG: o seed do dbt-spark sobre tabela Delta externa (location_root) faz
+# INSERT a cada chamada, nao replace - reseedar a cada 5 min duplicaria as
+# linhas indefinidamente e quebraria o teste unique_dim_tickers_ticker.
+echo "[entrypoint] semeando dim_tickers..."
+/opt/dbt-venv/bin/dbt seed --full-refresh --project-dir /opt/dbt --profiles-dir /opt/dbt \
+  || echo "[entrypoint] seed de dim_tickers falhou, o DAG tentara novamente"
+
 echo "[entrypoint] scheduler..."
 airflow scheduler &
 
