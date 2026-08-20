@@ -69,8 +69,6 @@ docker compose up -d --build
 
 ## Dashboard
 
-> **Substitua os arquivos abaixo pelos seus prints.** Veja [como gerar](#gerando-os-prints-e-o-gif).
-
 ![Dashboard](docs/images/dashboard.png)
 
 ![Pipeline em execução](docs/images/dashboard.gif)
@@ -496,8 +494,7 @@ b3-realtime-lakehouse/
 │   └── app.py                   # lê Delta via delta-rs, zero JVM
 │
 └── docs/
-    ├── images/                  # seus prints e o gif
-    └── linkedin-post.md         # rascunho do post
+    └── images/                  # prints e gif do dashboard e do Airflow
 ```
 
 ---
@@ -533,19 +530,6 @@ docker compose exec airflow bash -lc "ls /data/delta/gold"
 docker compose logs -f producer spark-streaming
 docker compose logs -f airflow | grep -E "dbt|ALERTA"
 ```
-
-### Gerando os prints e o gif
-
-1. Deixe rodando por ~20 minutos (com `SOURCE_MODE=simulated` você tem série cheia a qualquer
-   hora, inclusive fim de semana).
-2. `docs/images/dashboard.png` — dashboard em 1920×1080, aba do navegador em tela cheia.
-3. `docs/images/dashboard.gif` — 10 a 15 segundos capturando dois refreshes automáticos, para
-   provar que atualiza sozinho. No Windows, ScreenToGif; no macOS, Kap.
-4. `docs/images/airflow-dag.png` — a grid view da DAG `b3_batch_lakehouse` com várias execuções
-   verdes em sequência.
-
-Prints com dados reais do pregão rendem mais no LinkedIn: rode entre 10h e 18h de um dia útil,
-com `SOURCE_MODE=brapi`.
 
 ---
 

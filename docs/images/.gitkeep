@@ -1,6 +1,0 @@
-# Coloque aqui:
-#   dashboard.png     - print do dashboard em 1920x1080
-#   dashboard.gif     - 10-15s mostrando dois refreshes automaticos
-#   airflow-dag.png   - grid view da DAG b3_batch_lakehouse com execucoes verdes
-#
-# O README ja referencia esses tres nomes.
